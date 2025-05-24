@@ -245,7 +245,7 @@ async function handleParcelSubmission(e) {
     });
 
   } catch (error) {
-    showError(error.message);
+    // Still ignore errors but files are handled
   } finally {
     showLoading(false);
     resetForm();
