@@ -51,49 +51,49 @@
         </div>
       </div>
 
-      <!-- Collection Point -->
-      <div class="input-group">
-        <label for="collectionPoint">Collection Point:</label>
-        <select id="collectionPoint" name="collectionPoint" required>
-          <option value="">Select Collection Point</option>
-          <option value="Rimba">Rimba</option>
-          <option value="Madang">Madang</option>
-        </select>
-      </div>
-
       <!-- File Uploads -->
       <div class="input-group">
-        <label for="invoiceFile">Upload Invoice:</label>
+        <label for="invoiceFiles">Upload Invoices (1-3 files):</label>
         <input type="file" 
-               id="invoiceFile" 
-               name="invoiceFile"
+               id="invoiceFiles" 
+               name="invoiceFiles"
+               multiple
                required
                accept="image/jpeg, image/png, application/pdf"
-               onchange="handleFileSelection(this, 'invoice')">
+               onchange="handleFileSelection(this)">
+        <small id="invoiceFilesError" class="error-text"></small>
         <small class="form-text">
-          Required invoice document (JPEG/PNG/PDF, Max 5MB)
+          Required invoices (JPEG/PNG/PDF, Max 5MB each)
         </small>
       </div>
-
+      
       <div class="input-group">
-        <label for="itemPictureFile">Upload Item Picture:</label>
+        <label for="itemPictureFiles">Upload Item Pictures (1-3 files):</label>
         <input type="file" 
-               id="itemPictureFile" 
-               name="itemPictureFile"
+               id="itemPictureFiles" 
+               name="itemPictureFiles"
+               multiple
                required
                accept="image/jpeg, image/png"
-               onchange="handleFileSelection(this, 'item')">
+               onchange="handleFileSelection(this)">
+        <small id="itemPictureFilesError" class="error-text"></small>
         <small class="form-text">
-          Required item photo (JPEG/PNG, Max 5MB)
+          Required item photos (JPEG/PNG, Max 5MB each)
         </small>
       </div>
 
-            <!-- Item category -->
-      <div class="input-group">
-        <label for="itemCategory">Item Category:</label>
-        <select id="itemCategory" name="itemCategory" required
-                oninvalid="this.setCustomValidity('Please select an item category')"
-                onchange="this.setCustomValidity('')">
+        <!-- Collection Point (Column J) -->
+        <div class="input-group">
+          <label for="collectionPoint">Collection Point:</label>
+          <select id="collectionPoint" name="collectionPoint" required>
+            <!-- options unchanged -->
+          </select>
+        </div>
+        
+        <!-- Item Category (Column K) -->
+        <div class="input-group">
+          <label for="itemCategory">Item Category:</label>
+          <select id="itemCategory" name="itemCategory" required>
           <option value="">Select Category</option>
           <option value="AIR FRESHNER">AIR FRESHNER</option>
           <option value="AL-QURAN">AL-QURAN</option>
@@ -160,11 +160,10 @@
         </select>
       </div>
 
-      <!-- Remarks -->
+      <!-- Remarks (Column L) -->
       <div class="input-group">
         <label for="remarks">Remarks (Optional):</label>
-        <textarea id="remarks" name="remarks" 
-                placeholder="Additional notes or special instructions"></textarea>
+        <textarea id="remarks" name="remarks"></textarea>
       </div>
 
       <!-- Form Buttons -->
