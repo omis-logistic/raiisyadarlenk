@@ -784,12 +784,19 @@ document.addEventListener('DOMContentLoaded', () => {
   initValidationListeners();
   createLoaderElement();
 
-
+  // Initialize category requirements on page load
+  checkCategoryRequirements();
+  
   // Initialize parcel declaration form
   const parcelForm = document.getElementById('declarationForm');
   if (parcelForm) {
     parcelForm.addEventListener('submit', handleParcelSubmission);
-
+    
+    // Set up category change listener
+    const categorySelect = document.getElementById('itemCategory');
+    if (categorySelect) {
+      categorySelect.addEventListener('change', checkCategoryRequirements);
+    }
     // Phone field setup
     const phoneField = document.getElementById('phone');
     if (phoneField) {
@@ -823,4 +830,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (firstInput) firstInput.focus();
 });
 
+// New functions for category requirements =================
+function checkCategoryRequirements() {
+  const fileInput = document.getElementById('fileUpload');
+  const fileHelp = document.getElementById('fileHelp');
+  
+  // Always show required for files
+  fileInput.required = true;
+  fileHelp.innerHTML = 'Required: JPEG, PNG, PDF (Max 5MB each)';
+  fileHelp.style.color = '#ff4444';
+}
 
+function setupCategoryChangeListener() {
+  const categorySelect = document.getElementById('itemCategory');
+  if (categorySelect) {
+    categorySelect.addEventListener('change', checkCategoryRequirements);
+  }
+}
