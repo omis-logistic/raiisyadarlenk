@@ -220,10 +220,14 @@ async function handleParcelSubmission(e) {
   showLoading(true);
 
   try {
-    if (!validateAllFiles()) return;
+    if (!validateAllFiles()) {
+      showLoading(false);  
+      return;              
+    }       
 
     const invoiceFiles = await processFiles('invoiceFile');
     const itemFiles = await processFiles('itemPictureFile');
+    const processedFiles = [...invoiceFiles, ...itemFiles];
 
     const formData = new FormData(form);
 
