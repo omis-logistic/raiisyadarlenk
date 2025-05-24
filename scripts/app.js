@@ -220,18 +220,13 @@ async function handleParcelSubmission(e) {
   showLoading(true);
 
   try {
-    if (!validateAllFiles()) {
-      showLoading(false);  
-      return;              
-    }       
+    if (!validateAllFiles()) return;
 
     const invoiceFiles = await processFiles('invoiceFile');
     const itemFiles = await processFiles('itemPictureFile');
-    const processedFiles = [...invoiceFiles, ...itemFiles];
 
     const formData = new FormData(form);
-
-      const payload = {
+    const payload = {
         trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
         nameOnParcel: formData.get('nameOnParcel').trim(),
         phone: document.getElementById('phone').value,
@@ -239,7 +234,7 @@ async function handleParcelSubmission(e) {
         quantity: formData.get('quantity'),
         price: formData.get('price'),
         collectionPoint: formData.get('collectionPoint'),
-        files: processedFiles,
+        files: [...invoiceFiles, ...itemFiles],
         itemCategory: formData.get('itemCategory'),
         remark: formData.get('remarks')?.trim() || ''
       };
