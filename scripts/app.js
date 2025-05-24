@@ -220,21 +220,12 @@ async function handleParcelSubmission(e) {
   showLoading(true);
 
   try {
+    if (!validateAllFiles()) return;
+
+    const invoiceFiles = await processFiles('invoiceFile');
+    const itemFiles = await processFiles('itemPictureFile');
+
     const formData = new FormData(form);
-    const files = Array.from(formData.getAll('files'));
-    
-    // Process files for all submissions
-    if (files.length === 0) {
-      throw new Error('Files required for submission');
-    }
-    
-    const processedFiles = await Promise.all(
-      files.map(async file => ({
-        name: file.name,
-        type: file.type,
-        data: await readFileAsBase64(file)
-      }))
-    );
 
       const payload = {
         trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
@@ -244,8 +235,8 @@ async function handleParcelSubmission(e) {
         quantity: formData.get('quantity'),
         price: formData.get('price'),
         collectionPoint: formData.get('collectionPoint'),
-        itemCategory: formData.get('itemCategory'),
         files: processedFiles,
+        itemCategory: formData.get('itemCategory'),
         remark: formData.get('remarks')?.trim() || ''
       };
 
@@ -262,6 +253,7 @@ async function handleParcelSubmission(e) {
     resetForm();
     showSuccessMessage();
   }
+  
 }
 
 function readFileAsBase64(file) {
@@ -355,11 +347,16 @@ function validateCategory(selectElement) {
 }
 
 function validateInvoiceFiles() {
-  const files = document.getElementById('invoiceFiles')?.files || [];
-  const isValid = files.length >= 1 && files.length <= 3;
-  const errorMessage = isValid ? '' : 'Requires 1-3 documents';
-  
-  showError(errorMessage, 'invoiceFilesError');
+  const invoiceFiles = document.getElementById('invoiceFile').files;
+  const isValid = invoiceFiles.length >= 1 && invoiceFiles.length <= CONFIG.MAX_FILES;
+  showError(isValid ? '' : `Invoice: 1-${CONFIG.MAX_FILES} files required`, 'invoiceFilesError');
+  return isValid;
+}
+
+function validateItemPictureFiles() {
+  const itemFiles = document.getElementById('itemPictureFile').files;
+  const isValid = itemFiles.length >= 1 && itemFiles.length <= CONFIG.MAX_FILES;
+  showError(isValid ? '' : `Item Photos: 1-${CONFIG.MAX_FILES} files required`, 'itemFilesError');
   return isValid;
 }
 
@@ -371,7 +368,8 @@ function validateParcelPhone(input) {
 }
 
 // ================= FILE HANDLING =================
-async function processFiles(files) {
+async function processFiles(inputId) {
+  const files = Array.from(document.getElementById(inputId).files);
   return Promise.all(files.map(async file => ({
     name: file.name.replace(/[^a-z0-9._-]/gi, '_'),
     mimeType: file.type,
@@ -390,26 +388,49 @@ function toBase64(file) {
 }
 
 
-function handleFileSelection(input) {
+function handleFileSelection(input, type) {
   try {
     const files = Array.from(input.files);
-    
-    // Validate for all categories
-    if (files.length < 1) throw new Error('At least 1 file required');
-    if (files.length > 3) throw new Error('Max 3 files allowed');
+    const allowedTypes = type === 'invoice' 
+      ? ['application/pdf', 'image/jpeg', 'image/png']
+      : ['image/jpeg', 'image/png'];
+
+    if (files.length < 1) throw new Error(`At least 1 ${type} file required`);
+    if (files.length > CONFIG.MAX_FILES) throw new Error(`Max ${CONFIG.MAX_FILES} ${type} files allowed`);
 
     files.forEach(file => {
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error(`Invalid ${type} file type: ${file.type}`);
+      }
       if (file.size > CONFIG.MAX_FILE_SIZE) {
-        throw new Error(`${file.name} exceeds 5MB`);
+        throw new Error(`${file.name} exceeds 5MB limit`);
       }
     });
 
-    showError(`${files.length} valid files selected`, 'status-message success');
+    showError(`${files.length} valid ${type} files selected`, 'status-message success');
     
   } catch (error) {
     showError(error.message);
     input.value = '';
   }
+}
+
+function validateFiles() {
+  const invoiceFile = document.getElementById('invoiceFile').files[0];
+  const itemFile = document.getElementById('itemPictureFile').files[0];
+  
+  let isValid = true;
+  
+  if (!invoiceFile) {
+    showError('Invoice file required');
+    isValid = false;
+  }
+  if (!itemFile) {
+    showError('Item picture required');
+    isValid = false;
+  }
+  
+  return isValid;
 }
 
 // ================= SUBMISSION HANDLER =================
@@ -485,6 +506,10 @@ async function verifySubmission(trackingNumber) {
 }
 
 // ================= FORM VALIDATION UTILITIES =================
+function validateAllFiles() {
+  return validateInvoiceFiles() && validateItemPictureFiles();
+}
+
 function checkAllFields() {
   const validations = [
     validateTrackingNumberInput(document.getElementById('trackingNumber')),
@@ -494,7 +519,8 @@ function checkAllFields() {
     validateQuantity(document.getElementById('quantity')),
     validatePrice(document.getElementById('price')),
     validateCollectionPoint(document.getElementById('collectionPoint')),
-    validateInvoiceFiles()
+    validateCategory(document.getElementById('itemCategory')),
+    validateAllFiles()
   ];
 
   return validations.every(v => v === true);
