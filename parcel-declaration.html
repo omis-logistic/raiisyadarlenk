@@ -91,7 +91,9 @@
             <!-- Item category -->
       <div class="input-group">
         <label for="itemCategory">Item Category:</label>
-        <select id="itemCategory" name="itemCategory" required>
+        <select id="itemCategory" name="itemCategory" required
+                oninvalid="this.setCustomValidity('Please select an item category')"
+                onchange="this.setCustomValidity('')">
           <option value="">Select Category</option>
           <option value="AIR FRESHNER">AIR FRESHNER</option>
           <option value="AL-QURAN">AL-QURAN</option>
