@@ -2,7 +2,7 @@
 // ================= CONFIGURATION =================
 const CONFIG = {
   GAS_URL: 'https://script.google.com/macros/s/AKfycbzUhpBKasCdlw3AqoxmXOZZOZ6z3HjS8wfBR5_ehnJWN02F4WKY3b65G_fqEqLIL83j/exec',
-  PROXY_URL: 'https://script.google.com/macros/s/AKfycby9lwZrQuW5U_O-NCNOd5oNkR55hZ1Di4QWAaUEHuzFxiBTFJLBWrnHJas3k6D_I0vc/exec',
+  PROXY_URL: 'https://script.google.com/macros/s/AKfycbwg-RkPU3EHm8579FntA9C6h7NsF0hE8yBkAVf8TD2kRsNIRFITf4z7DKaguog0-aId/exec',
   SESSION_TIMEOUT: 3600,
   MAX_FILE_SIZE: 5 * 1024 * 1024,
   ALLOWED_FILE_TYPES: ['image/jpeg', 'image/png', 'application/pdf'],
@@ -234,6 +234,7 @@ async function handleParcelSubmission(e) {
       quantity: formData.get('quantity'),
       price: formData.get('price'),
       collectionPoint: formData.get('collectionPoint'),
+      itemCategory: formData.get('itemCategory'),
       files: [...invoiceFiles, ...itemFiles],
       remark: formData.get('remarks')?.trim() || ''
     };
@@ -312,6 +313,13 @@ function validateCollectionPoint(selectElement) {
   const value = selectElement?.value || '';
   const isValid = value !== '';
   showError(isValid ? '' : 'Please select collection point', 'collectionPointError');
+  return isValid;
+}
+
+function validateCategory(selectElement) {
+  const value = selectElement?.value || '';
+  const isValid = value !== '';
+  showError(isValid ? '' : 'Please select item category', 'itemCategoryError');
   return isValid;
 }
 
@@ -488,6 +496,7 @@ function checkAllFields() {
     validateQuantity(document.getElementById('quantity')),
     validatePrice(document.getElementById('price')),
     validateCollectionPoint(document.getElementById('collectionPoint')),
+    validateCategory(document.getElementById('itemCategory')),
     validateAllFiles()
   ];
   return validations.every(v => v === true);
