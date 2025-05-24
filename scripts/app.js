@@ -221,32 +221,27 @@ async function handleParcelSubmission(e) {
 
   try {
     const formData = new FormData(form);
-    const files = Array.from(formData.getAll('files'));
     
-    // Process files for all submissions
-    if (files.length === 0) {
-      throw new Error('Files required for submission');
-    }
+    // Process files
+    const invoiceFile = formData.get('invoiceFile');
+    const itemPictureFile = formData.get('itemPictureFile');
     
-    const processedFiles = await Promise.all(
-      files.map(async file => ({
-        name: file.name,
-        type: file.type,
-        data: await readFileAsBase64(file)
-      }))
-    );
+    const processedFiles = await Promise.all([
+      readFileAsBase64(invoiceFile),
+      readFileAsBase64(itemPictureFile)
+    ]);
 
-      const payload = {
-        trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
-        nameOnParcel: formData.get('nameOnParcel').trim(),
-        phone: document.getElementById('phone').value,
-        itemDescription: formData.get('itemDescription').trim(),
-        quantity: formData.get('quantity'),
-        price: formData.get('price'),
-        collectionPoint: formData.get('collectionPoint'),
-        files: processedFiles,
-        remark: formData.get('remarks')?.trim() || ''
-      };
+    const payload = {
+      trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
+      nameOnParcel: formData.get('nameOnParcel').trim(),
+      phone: document.getElementById('phone').value,
+      itemDescription: formData.get('itemDescription').trim(),
+      quantity: formData.get('quantity'),
+      price: formData.get('price'),
+      collectionPoint: formData.get('collectionPoint'),
+      files: processedFiles,
+      remark: formData.get('remarks')?.trim() || ''
+    };
 
     await fetch(CONFIG.PROXY_URL, {
       method: 'POST',
@@ -393,22 +388,22 @@ function toBase64(file) {
   });
 }
 
-function validateFiles(category, files) {
-  const starredCategories = [
-    '*Books', '*Cosmetics/Skincare/Bodycare', '*Food Beverage/Drinks',
-    '*Gadgets', '*Oil Ointment', '*Supplement', '*Others'
-  ];
-
-  if (starredCategories.includes(category)) {
-    if (files.length < 1) throw new Error('At least 1 file required');
-    if (files.length > 3) throw new Error('Maximum 3 files allowed');
+function validateFiles() {
+  const invoiceFile = document.getElementById('invoiceFile').files[0];
+  const itemFile = document.getElementById('itemPictureFile').files[0];
+  
+  let isValid = true;
+  
+  if (!invoiceFile) {
+    showError('Invoice file required');
+    isValid = false;
   }
-
-  files.forEach(file => {
-    if (file.size > CONFIG.MAX_FILE_SIZE) {
-      throw new Error(`${file.name} exceeds ${CONFIG.MAX_FILE_SIZE/1024/1024}MB limit`);
-    }
-  });
+  if (!itemFile) {
+    showError('Item picture required');
+    isValid = false;
+  }
+  
+  return isValid;
 }
 
 function handleFileSelection(input) {
