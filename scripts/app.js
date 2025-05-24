@@ -220,24 +220,35 @@ async function handleParcelSubmission(e) {
   showLoading(true);
 
   try {
-    if (!validateAllFiles()) return;
-
-    const invoiceFiles = await processFiles('invoiceFile');
-    const itemFiles = await processFiles('itemPictureFile');
-
     const formData = new FormData(form);
+    const invoiceFiles = Array.from(formData.getAll('invoiceFiles'));
+    const itemFiles = Array.from(formData.getAll('itemPictureFiles'));
+    const allFiles = [...invoiceFiles, ...itemFiles];
+
+    if (invoiceFiles.length === 0 || itemFiles.length === 0) {
+      throw new Error('Both invoice and item pictures required');
+    }
+
+    const processedFiles = await Promise.all(
+      allFiles.map(async file => ({
+        name: file.name,
+        type: file.type,
+        data: await readFileAsBase64(file)
+      }))
+    );
+
     const payload = {
-        trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
-        nameOnParcel: formData.get('nameOnParcel').trim(),
-        phone: document.getElementById('phone').value,
-        itemDescription: formData.get('itemDescription').trim(),
-        quantity: formData.get('quantity'),
-        price: formData.get('price'),
-        collectionPoint: formData.get('collectionPoint'),
-        files: [...invoiceFiles, ...itemFiles],
-        itemCategory: formData.get('itemCategory'),
-        remark: formData.get('remarks')?.trim() || ''
-      };
+      trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
+      nameOnParcel: formData.get('nameOnParcel').trim(),
+      phone: document.getElementById('phone').value,
+      itemDescription: formData.get('itemDescription').trim(),
+      quantity: formData.get('quantity'),
+      price: formData.get('price'),
+      collectionPoint: formData.get('collectionPoint'),
+      itemCategory: formData.get('itemCategory'),
+      files: processedFiles,
+      remark: formData.get('remarks')?.trim() || ''
+    };
 
     await fetch(CONFIG.PROXY_URL, {
       method: 'POST',
@@ -252,7 +263,6 @@ async function handleParcelSubmission(e) {
     resetForm();
     showSuccessMessage();
   }
-  
 }
 
 function readFileAsBase64(file) {
@@ -297,6 +307,7 @@ function validateItemCategory(category) {
     'UNDERWEAR', 'WALLET', 'WATCH & ACCESSORIES', 'WIRELESS & BLUETOOTH'
   ];
   
+  
   if (!validCategories.includes(category)) {
     throw new Error('Please select a valid item category');
   }
@@ -330,6 +341,13 @@ function validatePrice(inputElement) {
   return isValid;
 }
 
+function validateShippingPrice(inputElement) {
+  const value = parseFloat(inputElement?.value || 0);
+  const isValid = !isNaN(value) && value >= 0 && value < 100000;
+  showError(isValid ? '' : 'Valid shipping price (0-100000) required', 'shippingPriceError');
+  return isValid;
+}
+
 function validateCollectionPoint(selectElement) {
   const value = selectElement?.value || '';
   const isValid = value !== '';
@@ -346,16 +364,16 @@ function validateCategory(selectElement) {
 }
 
 function validateInvoiceFiles() {
-  const invoiceFiles = document.getElementById('invoiceFile').files;
-  const isValid = invoiceFiles.length >= 1 && invoiceFiles.length <= CONFIG.MAX_FILES;
-  showError(isValid ? '' : `Invoice: 1-${CONFIG.MAX_FILES} files required`, 'invoiceFilesError');
+  const files = document.getElementById('invoiceFiles')?.files || [];
+  const isValid = files.length >= 1 && files.length <= 3;
+  showError(isValid ? '' : 'Requires 1-3 invoices', 'invoiceFilesError');
   return isValid;
 }
 
 function validateItemPictureFiles() {
-  const itemFiles = document.getElementById('itemPictureFile').files;
-  const isValid = itemFiles.length >= 1 && itemFiles.length <= CONFIG.MAX_FILES;
-  showError(isValid ? '' : `Item Photos: 1-${CONFIG.MAX_FILES} files required`, 'itemFilesError');
+  const files = document.getElementById('itemPictureFiles')?.files || [];
+  const isValid = files.length >= 1 && files.length <= 3;
+  showError(isValid ? '' : 'Requires 1-3 pictures', 'itemPictureFilesError');
   return isValid;
 }
 
@@ -367,8 +385,7 @@ function validateParcelPhone(input) {
 }
 
 // ================= FILE HANDLING =================
-async function processFiles(inputId) {
-  const files = Array.from(document.getElementById(inputId).files);
+async function processFiles(files) {
   return Promise.all(files.map(async file => ({
     name: file.name.replace(/[^a-z0-9._-]/gi, '_'),
     mimeType: file.type,
@@ -386,50 +403,49 @@ function toBase64(file) {
   });
 }
 
+function validateFiles(category, files) {
+  const starredCategories = [
+    '*Books', '*Cosmetics/Skincare/Bodycare', '*Food Beverage/Drinks',
+    '*Gadgets', '*Oil Ointment', '*Supplement', '*Others'
+  ];
 
-function handleFileSelection(input, type) {
+  if (starredCategories.includes(category)) {
+    if (files.length < 1) throw new Error('At least 1 file required');
+    if (files.length > 3) throw new Error('Maximum 3 files allowed');
+  }
+
+  files.forEach(file => {
+    if (file.size > CONFIG.MAX_FILE_SIZE) {
+      throw new Error(`${file.name} exceeds ${CONFIG.MAX_FILE_SIZE/1024/1024}MB limit`);
+    }
+  });
+}
+
+function handleFileSelection(input) {
   try {
     const files = Array.from(input.files);
-    const allowedTypes = type === 'invoice' 
-      ? ['application/pdf', 'image/jpeg', 'image/png']
-      : ['image/jpeg', 'image/png'];
+    const isInvoice = input.id === 'invoiceFiles';
+    const maxFiles = 3;
+    const minFiles = 1;
 
-    if (files.length < 1) throw new Error(`At least 1 ${type} file required`);
-    if (files.length > CONFIG.MAX_FILES) throw new Error(`Max ${CONFIG.MAX_FILES} ${type} files allowed`);
+    if (files.length < minFiles) throw new Error(`Minimum ${minFiles} file${minFiles > 1 ? 's' : ''} required`);
+    if (files.length > maxFiles) throw new Error(`Maximum ${maxFiles} files allowed`);
 
     files.forEach(file => {
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error(`Invalid ${type} file type: ${file.type}`);
-      }
       if (file.size > CONFIG.MAX_FILE_SIZE) {
-        throw new Error(`${file.name} exceeds 5MB limit`);
+        throw new Error(`${file.name} exceeds 5MB`);
+      }
+      if (!CONFIG.ALLOWED_FILE_TYPES.includes(file.type)) {
+        throw new Error(`${file.type} not allowed`);
       }
     });
 
-    showError(`${files.length} valid ${type} files selected`, 'status-message success');
+    showError(`${files.length} ${isInvoice ? 'invoice' : 'item'} files selected`, 'status-message success');
     
   } catch (error) {
     showError(error.message);
     input.value = '';
   }
-}
-
-function validateFiles() {
-  const invoiceFile = document.getElementById('invoiceFile').files[0];
-  const itemFile = document.getElementById('itemPictureFile').files[0];
-  
-  let isValid = true;
-  
-  if (!invoiceFile) {
-    showError('Invoice file required');
-    isValid = false;
-  }
-  if (!itemFile) {
-    showError('Item picture required');
-    isValid = false;
-  }
-  
-  return isValid;
 }
 
 // ================= SUBMISSION HANDLER =================
@@ -438,6 +454,7 @@ async function submitDeclaration(payload) {
     // Ensure shippingPrice is included in the payload
     const fullPayload = {
       ...payload,
+      shippingPrice: payload.shippingPrice || 0,
       remark: payload.remark || ''  // Add remark with empty string fallback
     };
 
@@ -505,10 +522,6 @@ async function verifySubmission(trackingNumber) {
 }
 
 // ================= FORM VALIDATION UTILITIES =================
-function validateAllFiles() {
-  return validateInvoiceFiles() && validateItemPictureFiles();
-}
-
 function checkAllFields() {
   const validations = [
     validateTrackingNumberInput(document.getElementById('trackingNumber')),
@@ -518,8 +531,8 @@ function checkAllFields() {
     validateQuantity(document.getElementById('quantity')),
     validatePrice(document.getElementById('price')),
     validateCollectionPoint(document.getElementById('collectionPoint')),
-    validateCategory(document.getElementById('itemCategory')),
-    validateAllFiles()
+    validateInvoiceFiles(),
+    validateItemPictureFiles()
   ];
 
   return validations.every(v => v === true);
@@ -545,7 +558,7 @@ function initValidationListeners() {
       input.addEventListener('input', () => {
         switch(input.id) {
           case 'trackingNumber':
-            validateTrackingNumberInput(input); // Use new input validation
+            validateTrackingNumberInput(input);
             break;
           case 'nameOnParcel':
             validateName(input);
@@ -562,6 +575,9 @@ function initValidationListeners() {
           case 'price':
             validatePrice(input);
             break;
+          case 'shippingPrice':
+            validateShippingPrice(input);
+            break;
           case 'collectionPoint':
             validateCollectionPoint(input);
             break;
@@ -569,20 +585,53 @@ function initValidationListeners() {
             validateCategory(input);
             break;
           case 'remarks':
-          // No validation needed for optional field
-          break;
+            // No validation needed for optional field
+            break;
         }
         updateSubmitButtonState();
       });
     });
 
-    const fileInput = document.getElementById('invoiceFiles');
-    if(fileInput) {
-      fileInput.addEventListener('change', () => {
+    // Add listeners for both file inputs
+    const invoiceFileInput = document.getElementById('invoiceFiles');
+    const itemFileInput = document.getElementById('itemPictureFiles');
+
+    if(invoiceFileInput) {
+      invoiceFileInput.addEventListener('change', () => {
         validateInvoiceFiles();
         updateSubmitButtonState();
       });
     }
+
+    if(itemFileInput) {
+      itemFileInput.addEventListener('change', () => {
+        validateItemPictureFiles();
+        updateSubmitButtonState();
+      });
+    }
+
+    // Initialize category requirements
+    const categorySelect = document.getElementById('itemCategory');
+    if(categorySelect) {
+      categorySelect.addEventListener('change', checkCategoryRequirements);
+    }
+  }
+
+  // Initialize other form interactions
+  const resetBtn = document.getElementById('resetBtn');
+  if(resetBtn) {
+    resetBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetForm();
+    });
+  }
+
+  const printBtn = document.getElementById('printBtn');
+  if(printBtn) {
+    printBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.print();
+    });
   }
 }
 
