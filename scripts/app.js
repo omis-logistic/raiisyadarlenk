@@ -317,9 +317,26 @@ function validateCollectionPoint(selectElement) {
 }
 
 function validateCategory(selectElement) {
+  const validCategories = [
+    'AIR FRESHNER', 'AL-QURAN', 'BAJU', 'BAG', 'BATTERY OPERATED',
+    'BELT', 'BEDSHEET / CADAR', 'BIKE ACCESSORIES', 'BLANKET',
+    'CANDLE', 'CAP / HELMET / KOPIAH', 'CAR PARTS', 'CARPET',
+    'CLOTHES', 'CONTACT LENS', 'CORSET', 'COTTON', 'CURTAIN / TABIR',
+    'DIGITAL APPLIANCES', 'DRINKS', 'ELECTRIC APPLIANCES', 'EYE WEAR',
+    'FISHING ACCESSORIES', 'FOODS', 'GAMES & ACCESSORIES', 'GYM SET',
+    'HAIR CARE', 'HANDSOCKS', 'HYDROFLASK / TUMBLER', 'INCENSE',
+    'JEWELLERY', 'KAIN', 'KEYCHAINS', 'KITCHENWARE', 'LED LIGHT / LAMP',
+    'MOTORCYCLE PARTS', 'OIL / MINYAK', 'PHONE ACCESSORIES', 
+    'PHONE CASING', 'PILLOW', 'PLASTICWARE', 'RACKS / CABINET',
+    'SANDAL / SLIPPER', 'SEJADAH', 'SELUAR', 'SHOES', 'SKINCARE',
+    'SOCKS', 'SOLAR', 'SPEAKER', 'STATIONARIES', 'STICKERS',
+    'SUPPLEMENT', 'TELEKUNG', 'TOOLS', 'TOWEL', 'TOYS', 'TUDONG',
+    'UNDERWEAR', 'WALLET', 'WATCH & ACCESSORIES', 'WIRELESS & BLUETOOTH'
+  ];
+  
   const value = selectElement?.value || '';
-  const isValid = value !== '';
-  showError(isValid ? '' : 'Please select item category', 'itemCategoryError');
+  const isValid = validCategories.includes(value);
+  showError(isValid ? '' : 'Please select a valid category from the list', 'itemCategoryError');
   return isValid;
 }
 
@@ -364,23 +381,6 @@ function toBase64(file) {
   });
 }
 
-function validateFiles() {
-  const invoiceFile = document.getElementById('invoiceFile').files[0];
-  const itemFile = document.getElementById('itemPictureFile').files[0];
-  
-  let isValid = true;
-  
-  if (!invoiceFile) {
-    showError('Invoice file required');
-    isValid = false;
-  }
-  if (!itemFile) {
-    showError('Item picture required');
-    isValid = false;
-  }
-  
-  return isValid;
-}
 
 function handleFileSelection(input, type) {
   try {
@@ -415,7 +415,7 @@ async function submitDeclaration(payload) {
     // Ensure shippingPrice is included in the payload
     const fullPayload = {
       ...payload,
-      shippingPrice: payload.shippingPrice || 0,
+      itemCategory: payload.itemCategory,
       remark: payload.remark || ''  // Add remark with empty string fallback
     };
 
@@ -553,13 +553,21 @@ function initValidationListeners() {
       });
     });
 
-    const fileInput = document.getElementById('invoiceFiles');
+    const fileInput = document.getElementById('invoiceFile');
     if(fileInput) {
       fileInput.addEventListener('change', () => {
         validateInvoiceFiles();
         updateSubmitButtonState();
       });
     }
+    const itemFileInput = document.getElementById('itemPictureFile');
+    if(itemFileInput) {
+      itemFileInput.addEventListener('change', () => {
+        validateItemPictureFiles();
+        updateSubmitButtonState();
+      });
+    }
+    
   }
 }
 
@@ -784,19 +792,12 @@ document.addEventListener('DOMContentLoaded', () => {
   initValidationListeners();
   createLoaderElement();
 
-  // Initialize category requirements on page load
-  checkCategoryRequirements();
-  
+
   // Initialize parcel declaration form
   const parcelForm = document.getElementById('declarationForm');
   if (parcelForm) {
     parcelForm.addEventListener('submit', handleParcelSubmission);
-    
-    // Set up category change listener
-    const categorySelect = document.getElementById('itemCategory');
-    if (categorySelect) {
-      categorySelect.addEventListener('change', checkCategoryRequirements);
-    }
+
     // Phone field setup
     const phoneField = document.getElementById('phone');
     if (phoneField) {
@@ -830,20 +831,3 @@ document.addEventListener('DOMContentLoaded', () => {
   if (firstInput) firstInput.focus();
 });
 
-// New functions for category requirements =================
-function checkCategoryRequirements() {
-  const fileInput = document.getElementById('fileUpload');
-  const fileHelp = document.getElementById('fileHelp');
-  
-  // Always show required for files
-  fileInput.required = true;
-  fileHelp.innerHTML = 'Required: JPEG, PNG, PDF (Max 5MB each)';
-  fileHelp.style.color = '#ff4444';
-}
-
-function setupCategoryChangeListener() {
-  const categorySelect = document.getElementById('itemCategory');
-  if (categorySelect) {
-    categorySelect.addEventListener('change', checkCategoryRequirements);
-  }
-}
