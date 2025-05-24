@@ -533,6 +533,9 @@ function initValidationListeners() {
           case 'collectionPoint':
             validateCollectionPoint(input);
             break;
+          case 'itemCategory':
+            validateCategory(input);
+            break;
           case 'remarks':
           // No validation needed for optional field
           break;
