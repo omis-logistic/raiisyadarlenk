@@ -61,7 +61,34 @@
         </select>
       </div>
 
-      <!-- Item category -->
+      <!-- File Uploads -->
+      <div class="input-group">
+        <label for="invoiceFile">Upload Invoice:</label>
+        <input type="file" 
+               id="invoiceFile" 
+               name="invoiceFile"
+               required
+               accept="image/jpeg, image/png, application/pdf"
+               onchange="handleFileSelection(this, 'invoice')">
+        <small class="form-text">
+          Required invoice document (JPEG/PNG/PDF, Max 5MB)
+        </small>
+      </div>
+
+      <div class="input-group">
+        <label for="itemPictureFile">Upload Item Picture:</label>
+        <input type="file" 
+               id="itemPictureFile" 
+               name="itemPictureFile"
+               required
+               accept="image/jpeg, image/png"
+               onchange="handleFileSelection(this, 'item')">
+        <small class="form-text">
+          Required item photo (JPEG/PNG, Max 5MB)
+        </small>
+      </div>
+
+            <!-- Item category -->
       <div class="input-group">
         <label for="itemCategory">Item Category:</label>
         <select id="itemCategory" name="itemCategory" required>
@@ -129,33 +156,6 @@
           <option value="WATCH & ACCESSORIES">WATCH & ACCESSORIES</option>
           <option value="WIRELESS & BLUETOOTH">WIRELESS & BLUETOOTH</option>
         </select>
-      </div>
-
-      <!-- File Uploads -->
-      <div class="input-group">
-        <label for="invoiceFile">Upload Invoice:</label>
-        <input type="file" 
-               id="invoiceFile" 
-               name="invoiceFile"
-               required
-               accept="image/jpeg, image/png, application/pdf"
-               onchange="handleFileSelection(this, 'invoice')">
-        <small class="form-text">
-          Required invoice document (JPEG/PNG/PDF, Max 5MB)
-        </small>
-      </div>
-
-      <div class="input-group">
-        <label for="itemPictureFile">Upload Item Picture:</label>
-        <input type="file" 
-               id="itemPictureFile" 
-               name="itemPictureFile"
-               required
-               accept="image/jpeg, image/png"
-               onchange="handleFileSelection(this, 'item')">
-        <small class="form-text">
-          Required item photo (JPEG/PNG, Max 5MB)
-        </small>
       </div>
 
       <!-- Remarks -->
