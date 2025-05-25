@@ -222,8 +222,8 @@ async function handleParcelSubmission(e) {
   try {
     if (!validateAllFiles()) return;
 
-    const invoiceFiles = await processFiles('invoiceFile');
-    const itemFiles = await processFiles('itemPictureFile');
+    const invoiceFiles = await processFiles('invoiceFiles');
+    const itemFiles = await processFiles('itemPictureFiles');
 
     const formData = new FormData(form);
     const payload = {
@@ -235,6 +235,7 @@ async function handleParcelSubmission(e) {
       price: formData.get('price'),
       collectionPoint: formData.get('collectionPoint'),
       files: [...invoiceFiles, ...itemFiles],
+      itemCategory: formData.get('itemCategory'),
       remark: formData.get('remarks')?.trim() || ''
     };
 
@@ -316,14 +317,14 @@ function validateCollectionPoint(selectElement) {
 }
 
 function validateInvoiceFiles() {
-  const invoiceFiles = document.getElementById('invoiceFile').files;
+  const invoiceFiles = document.getElementById('invoiceFiles').files;
   const isValid = invoiceFiles.length >= 1 && invoiceFiles.length <= CONFIG.MAX_FILES;
   showError(isValid ? '' : `Invoice: 1-${CONFIG.MAX_FILES} files required`, 'invoiceFilesError');
   return isValid;
 }
 
 function validateItemPictureFiles() {
-  const itemFiles = document.getElementById('itemPictureFile').files;
+  const itemFiles = document.getElementById('itemPictureFiles').files;
   const isValid = itemFiles.length >= 1 && itemFiles.length <= CONFIG.MAX_FILES;
   showError(isValid ? '' : `Item Photos: 1-${CONFIG.MAX_FILES} files required`, 'itemFilesError');
   return isValid;
