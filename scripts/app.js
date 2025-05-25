@@ -1,8 +1,8 @@
 //scripts/app.js
 // ================= CONFIGURATION =================
 const CONFIG = {
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbzSaW6sBX28XHzHt9mxGxb86EM8fOqE7k9kGwHfNh7yraSXeKO3oSHm1bSJHu0AGITe/exec',
-  PROXY_URL: 'https://script.google.com/macros/s/AKfycbz-IVd14yhd4HH-yXahZlRB2OEbbglS6G1M6cqtZqv0G0r1zwn0aSJT92ZqX0fxi1Sk/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzUhpBKasCdlw3AqoxmXOZZOZ6z3HjS8wfBR5_ehnJWN02F4WKY3b65G_fqEqLIL83j/exec',
+  PROXY_URL: 'https://script.google.com/macros/s/AKfycby9lwZrQuW5U_O-NCNOd5oNkR55hZ1Di4QWAaUEHuzFxiBTFJLBWrnHJas3k6D_I0vc/exec',
   SESSION_TIMEOUT: 3600,
   MAX_FILE_SIZE: 5 * 1024 * 1024,
   ALLOWED_FILE_TYPES: ['image/jpeg', 'image/png', 'application/pdf'],
@@ -220,23 +220,12 @@ async function handleParcelSubmission(e) {
   showLoading(true);
 
   try {
+    if (!validateAllFiles()) return;
+
+    const invoiceFiles = await processFiles('invoiceFile');
+    const itemFiles = await processFiles('itemPictureFile');
+
     const formData = new FormData(form);
-    const invoiceFiles = Array.from(formData.getAll('invoiceFiles'));
-    const itemFiles = Array.from(formData.getAll('itemPictureFiles'));
-    const allFiles = [...invoiceFiles, ...itemFiles];
-
-    if (invoiceFiles.length === 0 || itemFiles.length === 0) {
-      throw new Error('Both invoice and item pictures required');
-    }
-
-    const processedFiles = await Promise.all(
-      allFiles.map(async file => ({
-        name: file.name,
-        type: file.type,
-        data: await readFileAsBase64(file)
-      }))
-    );
-
     const payload = {
       trackingNumber: formData.get('trackingNumber').trim().toUpperCase(),
       nameOnParcel: formData.get('nameOnParcel').trim(),
@@ -245,8 +234,7 @@ async function handleParcelSubmission(e) {
       quantity: formData.get('quantity'),
       price: formData.get('price'),
       collectionPoint: formData.get('collectionPoint'),
-      itemCategory: formData.get('itemCategory'),
-      files: processedFiles,
+      files: [...invoiceFiles, ...itemFiles],
       remark: formData.get('remarks')?.trim() || ''
     };
 
@@ -257,13 +245,15 @@ async function handleParcelSubmission(e) {
     });
 
   } catch (error) {
-    // Still ignore errors but files are handled
+    showError(error.message);
   } finally {
     showLoading(false);
     resetForm();
     showSuccessMessage();
   }
 }
+
+
 
 function readFileAsBase64(file) {
   return new Promise((resolve) => {
@@ -286,30 +276,6 @@ function validateTrackingNumberInput(inputElement) {
 function validateTrackingNumber(value) {
   if (!/^[A-Z0-9-]{5,}$/i.test(value)) {
     throw new Error('Invalid tracking number format');
-  }
-}
-
-function validateItemCategory(category) {
-  const validCategories = [
-    'AIR FRESHNER', 'AL-QURAN', 'BAJU', 'BAG', 'BATTERY OPERATED',
-    'BELT', 'BEDSHEET / CADAR', 'BIKE ACCESSORIES', 'BLANKET',
-    'CANDLE', 'CAP / HELMET / KOPIAH', 'CAR PARTS', 'CARPET',
-    'CLOTHES', 'CONTACT LENS', 'CORSET', 'COTTON', 'CURTAIN / TABIR',
-    'DIGITAL APPLIANCES', 'DRINKS', 'ELECTRIC APPLIANCES', 'EYE WEAR',
-    'FISHING ACCESSORIES', 'FOODS', 'GAMES & ACCESSORIES', 'GYM SET',
-    'HAIR CARE', 'HANDSOCKS', 'HYDROFLASK / TUMBLER', 'INCENSE',
-    'JEWELLERY', 'KAIN', 'KEYCHAINS', 'KITCHENWARE', 'LED LIGHT / LAMP',
-    'MOTORCYCLE PARTS', 'OIL / MINYAK', 'PHONE ACCESSORIES', 
-    'PHONE CASING', 'PILLOW', 'PLASTICWARE', 'RACKS / CABINET',
-    'SANDAL / SLIPPER', 'SEJADAH', 'SELUAR', 'SHOES', 'SKINCARE',
-    'SOCKS', 'SOLAR', 'SPEAKER', 'STATIONARIES', 'STICKERS',
-    'SUPPLEMENT', 'TELEKUNG', 'TOOLS', 'TOWEL', 'TOYS', 'TUDONG',
-    'UNDERWEAR', 'WALLET', 'WATCH & ACCESSORIES', 'WIRELESS & BLUETOOTH'
-  ];
-  
-  
-  if (!validCategories.includes(category)) {
-    throw new Error('Please select a valid item category');
   }
 }
 
@@ -341,12 +307,6 @@ function validatePrice(inputElement) {
   return isValid;
 }
 
-function validateShippingPrice(inputElement) {
-  const value = parseFloat(inputElement?.value || 0);
-  const isValid = !isNaN(value) && value >= 0 && value < 100000;
-  showError(isValid ? '' : 'Valid shipping price (0-100000) required', 'shippingPriceError');
-  return isValid;
-}
 
 function validateCollectionPoint(selectElement) {
   const value = selectElement?.value || '';
@@ -355,25 +315,17 @@ function validateCollectionPoint(selectElement) {
   return isValid;
 }
 
-function validateCategory(selectElement) {
-  const value = selectElement?.value || '';
-  const isValid = value !== '';
-  showError(isValid ? '' : 'Please select item category', 'itemCategoryError');
-  if(isValid) checkInvoiceRequirements();
-  return isValid;
-}
-
 function validateInvoiceFiles() {
-  const files = document.getElementById('invoiceFiles')?.files || [];
-  const isValid = files.length >= 1 && files.length <= 3;
-  showError(isValid ? '' : 'Requires 1-3 invoices', 'invoiceFilesError');
+  const invoiceFiles = document.getElementById('invoiceFile').files;
+  const isValid = invoiceFiles.length >= 1 && invoiceFiles.length <= CONFIG.MAX_FILES;
+  showError(isValid ? '' : `Invoice: 1-${CONFIG.MAX_FILES} files required`, 'invoiceFilesError');
   return isValid;
 }
 
 function validateItemPictureFiles() {
-  const files = document.getElementById('itemPictureFiles')?.files || [];
-  const isValid = files.length >= 1 && files.length <= 3;
-  showError(isValid ? '' : 'Requires 1-3 pictures', 'itemPictureFilesError');
+  const itemFiles = document.getElementById('itemPictureFile').files;
+  const isValid = itemFiles.length >= 1 && itemFiles.length <= CONFIG.MAX_FILES;
+  showError(isValid ? '' : `Item Photos: 1-${CONFIG.MAX_FILES} files required`, 'itemFilesError');
   return isValid;
 }
 
@@ -385,7 +337,8 @@ function validateParcelPhone(input) {
 }
 
 // ================= FILE HANDLING =================
-async function processFiles(files) {
+async function processFiles(inputId) {
+  const files = Array.from(document.getElementById(inputId).files);
   return Promise.all(files.map(async file => ({
     name: file.name.replace(/[^a-z0-9._-]/gi, '_'),
     mimeType: file.type,
@@ -403,44 +356,44 @@ function toBase64(file) {
   });
 }
 
-function validateFiles(category, files) {
-  const starredCategories = [
-    '*Books', '*Cosmetics/Skincare/Bodycare', '*Food Beverage/Drinks',
-    '*Gadgets', '*Oil Ointment', '*Supplement', '*Others'
-  ];
-
-  if (starredCategories.includes(category)) {
-    if (files.length < 1) throw new Error('At least 1 file required');
-    if (files.length > 3) throw new Error('Maximum 3 files allowed');
+function validateFiles() {
+  const invoiceFile = document.getElementById('invoiceFile').files[0];
+  const itemFile = document.getElementById('itemPictureFile').files[0];
+  
+  let isValid = true;
+  
+  if (!invoiceFile) {
+    showError('Invoice file required');
+    isValid = false;
   }
-
-  files.forEach(file => {
-    if (file.size > CONFIG.MAX_FILE_SIZE) {
-      throw new Error(`${file.name} exceeds ${CONFIG.MAX_FILE_SIZE/1024/1024}MB limit`);
-    }
-  });
+  if (!itemFile) {
+    showError('Item picture required');
+    isValid = false;
+  }
+  
+  return isValid;
 }
 
-function handleFileSelection(input) {
+function handleFileSelection(input, type) {
   try {
     const files = Array.from(input.files);
-    const isInvoice = input.id === 'invoiceFiles';
-    const maxFiles = 3;
-    const minFiles = 1;
+    const allowedTypes = type === 'invoice' 
+      ? ['application/pdf', 'image/jpeg', 'image/png']
+      : ['image/jpeg', 'image/png'];
 
-    if (files.length < minFiles) throw new Error(`Minimum ${minFiles} file${minFiles > 1 ? 's' : ''} required`);
-    if (files.length > maxFiles) throw new Error(`Maximum ${maxFiles} files allowed`);
+    if (files.length < 1) throw new Error(`At least 1 ${type} file required`);
+    if (files.length > CONFIG.MAX_FILES) throw new Error(`Max ${CONFIG.MAX_FILES} ${type} files allowed`);
 
     files.forEach(file => {
-      if (file.size > CONFIG.MAX_FILE_SIZE) {
-        throw new Error(`${file.name} exceeds 5MB`);
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error(`Invalid ${type} file type: ${file.type}`);
       }
-      if (!CONFIG.ALLOWED_FILE_TYPES.includes(file.type)) {
-        throw new Error(`${file.type} not allowed`);
+      if (file.size > CONFIG.MAX_FILE_SIZE) {
+        throw new Error(`${file.name} exceeds 5MB limit`);
       }
     });
 
-    showError(`${files.length} ${isInvoice ? 'invoice' : 'item'} files selected`, 'status-message success');
+    showError(`${files.length} valid ${type} files selected`, 'status-message success');
     
   } catch (error) {
     showError(error.message);
@@ -522,19 +475,21 @@ async function verifySubmission(trackingNumber) {
 }
 
 // ================= FORM VALIDATION UTILITIES =================
+function validateAllFiles() {
+  return validateInvoiceFiles() && validateItemPictureFiles();
+}
+
 function checkAllFields() {
   const validations = [
     validateTrackingNumberInput(document.getElementById('trackingNumber')),
     validateName(document.getElementById('nameOnParcel')),
-    validateParcelPhone(document.getElementById('phoneNumber')),
+    validateParcelPhone(document.getElementById('phone')),
     validateDescription(document.getElementById('itemDescription')),
     validateQuantity(document.getElementById('quantity')),
     validatePrice(document.getElementById('price')),
     validateCollectionPoint(document.getElementById('collectionPoint')),
-    validateInvoiceFiles(),
-    validateItemPictureFiles()
+    validateAllFiles()
   ];
-
   return validations.every(v => v === true);
 }
 
@@ -558,7 +513,7 @@ function initValidationListeners() {
       input.addEventListener('input', () => {
         switch(input.id) {
           case 'trackingNumber':
-            validateTrackingNumberInput(input);
+            validateTrackingNumberInput(input); // Use new input validation
             break;
           case 'nameOnParcel':
             validateName(input);
@@ -575,63 +530,24 @@ function initValidationListeners() {
           case 'price':
             validatePrice(input);
             break;
-          case 'shippingPrice':
-            validateShippingPrice(input);
-            break;
           case 'collectionPoint':
             validateCollectionPoint(input);
             break;
-          case 'itemCategory':
-            validateCategory(input);
-            break;
           case 'remarks':
-            // No validation needed for optional field
-            break;
+          // No validation needed for optional field
+          break;
         }
         updateSubmitButtonState();
       });
     });
 
-    // Add listeners for both file inputs
-    const invoiceFileInput = document.getElementById('invoiceFiles');
-    const itemFileInput = document.getElementById('itemPictureFiles');
-
-    if(invoiceFileInput) {
-      invoiceFileInput.addEventListener('change', () => {
+    const fileInput = document.getElementById('invoiceFiles');
+    if(fileInput) {
+      fileInput.addEventListener('change', () => {
         validateInvoiceFiles();
         updateSubmitButtonState();
       });
     }
-
-    if(itemFileInput) {
-      itemFileInput.addEventListener('change', () => {
-        validateItemPictureFiles();
-        updateSubmitButtonState();
-      });
-    }
-
-    // Initialize category requirements
-    const categorySelect = document.getElementById('itemCategory');
-    if(categorySelect) {
-      categorySelect.addEventListener('change', checkCategoryRequirements);
-    }
-  }
-
-  // Initialize other form interactions
-  const resetBtn = document.getElementById('resetBtn');
-  if(resetBtn) {
-    resetBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      resetForm();
-    });
-  }
-
-  const printBtn = document.getElementById('printBtn');
-  if(printBtn) {
-    printBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.print();
-    });
   }
 }
 
@@ -856,19 +772,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initValidationListeners();
   createLoaderElement();
 
-  // Initialize category requirements on page load
-  checkCategoryRequirements();
 
   // Initialize parcel declaration form
   const parcelForm = document.getElementById('declarationForm');
   if (parcelForm) {
     parcelForm.addEventListener('submit', handleParcelSubmission);
-    
-    // Set up category change listener
-    const categorySelect = document.getElementById('itemCategory');
-    if (categorySelect) {
-      categorySelect.addEventListener('change', checkCategoryRequirements);
-    }
 
     // Phone field setup
     const phoneField = document.getElementById('phone');
@@ -903,20 +811,3 @@ document.addEventListener('DOMContentLoaded', () => {
   if (firstInput) firstInput.focus();
 });
 
-// New functions for category requirements =================
-function checkCategoryRequirements() {
-  const fileInput = document.getElementById('fileUpload');
-  const fileHelp = document.getElementById('fileHelp');
-  
-  // Always show required for files
-  fileInput.required = true;
-  fileHelp.innerHTML = 'Required: JPEG, PNG, PDF (Max 5MB each)';
-  fileHelp.style.color = '#ff4444';
-}
-
-function setupCategoryChangeListener() {
-  const categorySelect = document.getElementById('itemCategory');
-  if (categorySelect) {
-    categorySelect.addEventListener('change', checkCategoryRequirements);
-  }
-}
